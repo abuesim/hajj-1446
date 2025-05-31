@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>حجاج 1446هـ</title>
+
+  <!-- مكتبة PapaParse لتحليل CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+      text-align: center;
+    }
+    #login-container {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #login-box {
+      background: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      max-width: 300px;
+      width: 100%;
+    }
+    #login-box h2 {
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+    #login-box input[type="password"] {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    #login-box button {
+      padding: 8px 16px;
+      font-size: 1rem;
+      background: #007b00;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    header {
+      background: #004a00;
+      color: #fff;
+      padding: 20px 0;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+    #update-date {
+      margin-top: 15px;
+      font-size: 1rem;
+      color: #333;
+    }
+    #search-container {
+      margin: 10px auto 20px;
+      max-width: 600px;
+    }
+    #search-input {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 1rem;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    table {
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto 40px;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #ddd;
+      font-size: 1rem;
+    }
+    th {
+      background: #eee;
+    }
+    tr:hover {
+      background: #f1f1f1;
+    }
+    .status-allowed {
+      background-color: #c8e6c9; /* لون أخضر باهت */
+      color: #256029;
+    }
+    .status-denied {
+      background-color: #ffcdd2; /* لون أحمر باهت */
+      color: #b71c1c;
+    }
+    @media (max-width: 600px) {
+      header {
+        font-size: 1.5rem;
+      }
+      th, td {
+        font-size: 0.9rem;
+        padding: 10px 8px;
+      }
+      #search-input {
+        font-size: 0.9rem;
+      }
+      #update-date {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- شاشة تسجيل الدخول البسيطة -->
+  <div id="login-container">
+    <div id="login-box">
+      <h2>أدخل كلمة السر</h2>
+      <input type="password" id="password-input" placeholder="كلمة السر" />
+      <button id="login-button">دخول</button>
+    </div>
+  </div>
+
+  <!-- المحتوى المخفي لحد ما يدخل كلمة السر -->
+  <div id="main-content" style="display: none;">
+    <!-- العنوان -->
+    <header>حجاج 1446هـ</header>
+    <!-- تاريخ التحديث -->
+    <div id="update-date">جاري التحميل...</div>
+
+    <!-- خانة البحث -->
+    <div id="search-container">
+      <input
+        type="text"
+        id="search-input"
+        placeholder="ابحث بالاسم أو رقم الهوية..."
+        autocomplete="off"
+      />
+    </div>
+
+    <!-- الجدول -->
+    <table id="data-table">
+      <thead>
+        <tr>
+          <th>الاسم</th>
+          <th>رقم الهوية</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- يتم ملؤها برمجياً -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    // كلمة السر الافتراضية - غيّرها إذا تبي
+    const PASSWORD = "secretpassword";
+
+    const loginContainer = document.getElementById("login-container");
+    const mainContent    = document.getElementById("main-content");
+    const passwordInput  = document.getElementById("password-input");
+    const loginButton    = document.getElementById("login-button");
+    const updateDateElem = document.getElementById("update-date");
+
+    loginButton.addEventListener("click", () => {
+      const entered = passwordInput.value.trim();
+      if (entered === PASSWORD) {
+        loginContainer.style.display = "none";
+        mainContent.style.display    = "block";
+        loadAndRenderData();
+      } else {
+        alert("كلمة السر خاطئة");
+        passwordInput.value = "";
+        passwordInput.focus();
+      }
+    });
+
+    passwordInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        loginButton.click();
+      }
+    });
+
+    // بيانات كاملة للفلترة
+    let allData = [];
+
+    function loadAndRenderData() {
+      Papa.parse("data.csv", {
+        download: true,
+        header: false,
+        skipEmptyLines: true,
+        complete: function(results) {
+          const rows = results.data;
+          // استخراج تاريخ التحديث من الصف الأول
+          const updateDate = rows[0][0] || "";
+          updateDateElem.textContent = "آخر تحديث: " + updateDate;
+
+          // تعريف الصف الثاني كعناوين
+          const headerRow = rows[1];
+          const statusIndex = headerRow.indexOf("حالة بطاقة نسك");
+          const nameIndex   = headerRow.indexOf("الاسم");
+          const idIndex     = headerRow.indexOf("الهوية");
+
+          // بقية الصفوف هي البيانات
+          const dataRows = rows.slice(2);
+
+          allData = dataRows.map(r => ({
+            name: r[nameIndex] || "",
+            id:   r[idIndex]   || "",
+            status: r[statusIndex] || ""
+          }));
+
+          renderTable(allData);
+        },
+        error: function(err) {
+          console.error("خطأ في تحميل CSV:", err);
+          updateDateElem.textContent = "خطأ في تحميل البيانات";
+        }
+      });
+    }
+
+    function renderTable(dataArray) {
+      const tbody = document.querySelector("#data-table tbody");
+      tbody.innerHTML = "";
+
+      dataArray.forEach(row => {
+        const tr = document.createElement("tr");
+
+        const tdName = document.createElement("td");
+        tdName.textContent = row.name;
+        tr.appendChild(tdName);
+
+        const tdId = document.createElement("td");
+        tdId.textContent = row.id;
+        tr.appendChild(tdId);
+
+        const tdStatus = document.createElement("td");
+        tdStatus.textContent = row.status;
+        if ((row.status || "").trim() === "مسموح") {
+          tdStatus.classList.add("status-allowed");
+        } else {
+          tdStatus.classList.add("status-denied");
+        }
+        tr.appendChild(tdStatus);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("search-input").addEventListener("input", (e) => {
+      const query = e.target.value.trim().toLowerCase();
+      if (!query) {
+        renderTable(allData);
+        return;
+      }
+      const filtered = allData.filter(row => {
+        return row.name.toLowerCase().includes(query) || row.id.includes(query);
+      });
+      renderTable(filtered);
+    });
+  </script>
+</body>
+</html>
