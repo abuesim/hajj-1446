@@ -135,7 +135,7 @@
     <!-- العنوان -->
     <header>حجاج 1446هـ</header>
     <!-- تاريخ التحديث -->
-    <p id="update-date">آخر تحديث: السبت 5 ذي الحجة الساعة 4 فجراً</p>
+    <p id="update-date">جاري جلب التاريخ...</p>
 
     <!-- خانة البحث -->
     <div id="search-container">
@@ -163,18 +163,20 @@
   </div>
 
   <script>
-    // ======= إعداد كلمة السر (تمّ تغييره إلى 14461466) =======
+    // ======= إعداد كلمة السر =======
     const PASSWORD = "14461466";
 
     const loginContainer = document.getElementById("login-container");
     const mainContent   = document.getElementById("main-content");
     const passwordInput = document.getElementById("password-input");
     const loginButton   = document.getElementById("login-button");
+    const updateDateEl  = document.getElementById("update-date");
+
+    let allData = []; // لتخزين البيانات الكاملة بعد التحميل
 
     loginButton.addEventListener("click", () => {
       const entered = passwordInput.value.trim();
       if (entered === PASSWORD) {
-        // إذا الكلمة صح، نخفي شاشة الدخول ونظهر المحتوى
         loginContainer.style.display = "none";
         mainContent.style.display    = "block";
         loadAndRenderData();
@@ -191,20 +193,38 @@
       }
     });
 
-    // ======= دالة لتحميل CSV ومعالجته =======
-    let allData = []; // نخزّن البيانات كاملة عشان الفلترة
-
+    // ======= دالة لتحميل CSV ومعالجته حسب هيكل الملف المرفوع =======
     function loadAndRenderData() {
       Papa.parse("data.csv", {
         download: true,
-        header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          allData = results.data;
-          renderTable([]); // نعَدِّل الجدول ليكون فارغ في البداية
+          const rows = results.data;
+          if (rows.length >= 2) {
+            // الصف الأول يحتوي على التاريخ
+            const updateDate = rows[0][0];
+            updateDateEl.textContent = "آخر تحديث: " + updateDate;
+
+            // الصف الثاني هو رأس الجدول: ['حالة بطاقة نسك','الاسم','الهوية', ...]
+            // البيانات تبدأ من الصف رقم 3 في الصفيف (index 2)
+            const dataRows = rows.slice(2);
+
+            // انشاء مصفوفة الكائنات بصيغة: { name, id, status }
+            allData = dataRows.map(r => ({
+              name: r[1] || "",
+              id: r[2] || "",
+              status: r[0] || ""
+            }));
+          } else {
+            updateDateEl.textContent = "تعذر جلب البيانات.";
+          }
+
+          // لا نعرض الجدول افتراضيًا، فقط بعد البحث
+          renderTable([]);
         },
         error: function(err) {
           console.error("خطأ في تحميل CSV:", err);
+          updateDateEl.textContent = "خطأ في تحميل البيانات.";
         }
       });
     }
@@ -212,7 +232,7 @@
     // ======= دالة لعرض الجدول من مصفوفة البيانات =======
     function renderTable(dataArray) {
       const tbody = document.querySelector("#data-table tbody");
-      tbody.innerHTML = ""; // نفضي الجدول قبل ما نعبيه من جديد
+      tbody.innerHTML = ""; // نفضي الجدول قبل إعادة التعبئة
 
       dataArray.forEach(row => {
         const tr = document.createElement("tr");
@@ -227,7 +247,7 @@
         tdId.textContent = row.id;
         tr.appendChild(tdId);
 
-        // العمود: الحالة مع تلوين الخلية بناءً على القيمة
+        // العمود: الحالة مع التلوين
         const tdStatus = document.createElement("td");
         tdStatus.textContent = row.status;
         const statusLower = (row.status || "").trim();
@@ -242,12 +262,12 @@
       });
     }
 
-    // ======= دالة الفلترة (إظهار البيانات فقط بعد كتابة شيء) =======
+    // ======= دالة الفلترة وعرض النتائج أثناء الكتابة =======
     const searchInput = document.getElementById("search-input");
     searchInput.addEventListener("input", () => {
       const query = searchInput.value.trim().toLowerCase();
       if (!query) {
-        renderTable([]); // خالي إذا مافي بحث
+        renderTable([]); // لا عرض عند خلو خانة البحث
         return;
       }
       const filtered = allData.filter(row => {
