@@ -62,12 +62,12 @@
       font-weight: bold;
     }
     #update-date {
-      margin-top: 15px;
+      margin: 10px 0;
       font-size: 1rem;
       color: #333;
     }
     #search-container {
-      margin: 10px auto 20px;
+      margin: 20px auto;
       max-width: 600px;
     }
     #search-input {
@@ -116,9 +116,6 @@
       #search-input {
         font-size: 0.9rem;
       }
-      #update-date {
-        font-size: 0.9rem;
-      }
     }
   </style>
 </head>
@@ -138,7 +135,7 @@
     <!-- العنوان -->
     <header>حجاج 1446هـ</header>
     <!-- تاريخ التحديث -->
-    <div id="update-date">جاري التحميل...</div>
+    <p id="update-date">آخر تحديث: السبت 5 ذي الحجة الساعة 4 فجراً</p>
 
     <!-- خانة البحث -->
     <div id="search-container">
@@ -160,24 +157,24 @@
         </tr>
       </thead>
       <tbody>
-        <!-- يتم ملؤها برمجياً -->
+        <!-- لا تظهر أي بيانات افتراضيًا -->
       </tbody>
     </table>
   </div>
 
   <script>
-    // كلمة السر الافتراضية - غيّرها إذا تبي
+    // ======= إعداد كلمة السر (تمّ تغييره إلى 14461466) =======
     const PASSWORD = "14461466";
 
     const loginContainer = document.getElementById("login-container");
-    const mainContent    = document.getElementById("main-content");
-    const passwordInput  = document.getElementById("password-input");
-    const loginButton    = document.getElementById("login-button");
-    const updateDateElem = document.getElementById("update-date");
+    const mainContent   = document.getElementById("main-content");
+    const passwordInput = document.getElementById("password-input");
+    const loginButton   = document.getElementById("login-button");
 
     loginButton.addEventListener("click", () => {
       const entered = passwordInput.value.trim();
       if (entered === PASSWORD) {
+        // إذا الكلمة صح، نخفي شاشة الدخول ونظهر المحتوى
         loginContainer.style.display = "none";
         mainContent.style.display    = "block";
         loadAndRenderData();
@@ -194,62 +191,47 @@
       }
     });
 
-    // بيانات كاملة للفلترة
-    let allData = [];
+    // ======= دالة لتحميل CSV ومعالجته =======
+    let allData = []; // نخزّن البيانات كاملة عشان الفلترة
 
     function loadAndRenderData() {
       Papa.parse("data.csv", {
         download: true,
-        header: false,
+        header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          const rows = results.data;
-          // استخراج تاريخ التحديث من الصف الأول
-          const updateDate = rows[0][0] || "";
-          updateDateElem.textContent = "آخر تحديث: " + updateDate;
-
-          // تعريف الصف الثاني كعناوين
-          const headerRow = rows[1];
-          const statusIndex = headerRow.indexOf("حالة بطاقة نسك");
-          const nameIndex   = headerRow.indexOf("الاسم");
-          const idIndex     = headerRow.indexOf("الهوية");
-
-          // بقية الصفوف هي البيانات
-          const dataRows = rows.slice(2);
-
-          allData = dataRows.map(r => ({
-            name: r[nameIndex] || "",
-            id:   r[idIndex]   || "",
-            status: r[statusIndex] || ""
-          }));
-
-          renderTable(allData);
+          allData = results.data;
+          renderTable([]); // نعَدِّل الجدول ليكون فارغ في البداية
         },
         error: function(err) {
           console.error("خطأ في تحميل CSV:", err);
-          updateDateElem.textContent = "خطأ في تحميل البيانات";
         }
       });
     }
 
+    // ======= دالة لعرض الجدول من مصفوفة البيانات =======
     function renderTable(dataArray) {
       const tbody = document.querySelector("#data-table tbody");
-      tbody.innerHTML = "";
+      tbody.innerHTML = ""; // نفضي الجدول قبل ما نعبيه من جديد
 
       dataArray.forEach(row => {
         const tr = document.createElement("tr");
 
+        // العمود: الاسم
         const tdName = document.createElement("td");
         tdName.textContent = row.name;
         tr.appendChild(tdName);
 
+        // العمود: رقم الهوية
         const tdId = document.createElement("td");
         tdId.textContent = row.id;
         tr.appendChild(tdId);
 
+        // العمود: الحالة مع تلوين الخلية بناءً على القيمة
         const tdStatus = document.createElement("td");
         tdStatus.textContent = row.status;
-        if ((row.status || "").trim() === "مسموح") {
+        const statusLower = (row.status || "").trim();
+        if (statusLower === "مسموح") {
           tdStatus.classList.add("status-allowed");
         } else {
           tdStatus.classList.add("status-denied");
@@ -260,14 +242,18 @@
       });
     }
 
-    document.getElementById("search-input").addEventListener("input", (e) => {
-      const query = e.target.value.trim().toLowerCase();
+    // ======= دالة الفلترة (إظهار البيانات فقط بعد كتابة شيء) =======
+    const searchInput = document.getElementById("search-input");
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.trim().toLowerCase();
       if (!query) {
-        renderTable(allData);
+        renderTable([]); // خالي إذا مافي بحث
         return;
       }
       const filtered = allData.filter(row => {
-        return row.name.toLowerCase().includes(query) || row.id.includes(query);
+        const nameLower = (row.name || "").toLowerCase();
+        const idLower   = (row.id   || "").toString().toLowerCase();
+        return nameLower.includes(query) || idLower.includes(query);
       });
       renderTable(filtered);
     });
