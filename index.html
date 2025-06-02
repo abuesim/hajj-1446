@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -82,7 +83,7 @@
     }
     table {
       width: 90%;
-      max-width: 800px;
+      max-width: 900px;
       margin: 20px auto 40px;
       border-collapse: collapse;
       background: #fff;
@@ -92,6 +93,8 @@
       padding: 12px 10px;
       border-bottom: 1px solid #ddd;
       font-size: 1rem;
+      vertical-align: middle;
+      text-align: center;
     }
     th {
       background: #eee;
@@ -100,20 +103,28 @@
       background: #f1f1f1;
     }
     .status-allowed {
-      background-color: #c8e6c9; /* لون أخضر باهت */
+      background-color: #c8e6c9; /* أخضر باهت */
       color: #256029;
     }
     .status-denied {
-      background-color: #ffcdd2; /* لون أحمر باهت */
+      background-color: #ffcdd2; /* أحمر باهت */
       color: #b71c1c;
+    }
+    .img-cell img {
+      height: 50px; /* ضبط ارتفاع الصورة ليتناسب مع الصف */
+      width: auto;
+      border-radius: 4px;
     }
     @media (max-width: 600px) {
       header {
         font-size: 1.5rem;
       }
       th, td {
-        font-size: 0.9rem;
-        padding: 10px 8px;
+        font-size: 0.8rem;
+        padding: 8px 4px;
+      }
+      .img-cell img {
+        height: 40px;
       }
       #search-input {
         font-size: 0.9rem;
@@ -123,7 +134,7 @@
 </head>
 <body>
 
-  <!-- شاشة تسجيل الدخول البسيطة -->
+  <!-- شاشة تسجيل الدخول -->
   <div id="login-container">
     <div id="login-box">
       <h2>أدخل كلمة السر</h2>
@@ -132,7 +143,7 @@
     </div>
   </div>
 
-  <!-- المحتوى المخفي لحد ما يدخل كلمة السر -->
+  <!-- المحتوى الرئيسي (مخفي حتى يدخل كلمة السر) -->
   <div id="main-content" style="display: none;">
     <!-- العنوان -->
     <header>العاملين في حج 1446هـ</header>
@@ -149,23 +160,24 @@
       />
     </div>
 
-    <!-- الجدول -->
+    <!-- جدول البيانات مع عمود الصورة -->
     <table id="data-table">
       <thead>
         <tr>
+          <th>الصورة</th>
           <th>الاسم</th>
           <th>رقم الهوية</th>
           <th>الحالة</th>
         </tr>
       </thead>
       <tbody>
-        <!-- لا تظهر أي بيانات افتراضيًا -->
+        <!-- يُملأ ديناميكيًا بواسطة JavaScript -->
       </tbody>
     </table>
   </div>
 
   <script>
-    // إعادة تحميل الصفحة تلقائيًا كل 60 ثانية
+    // إعادة تحميل الصفحة تلقائيًا كل 60 ثانية مع تجاهل الكاش
     setTimeout(() => {
       window.location.reload(true);
     }, 60000);
@@ -179,8 +191,9 @@
     const loginButton   = document.getElementById("login-button");
     const updateDateEl  = document.getElementById("update-date");
 
-    let allData = []; // لتخزين البيانات الكاملة بعد التحميل
+    let allData = []; // ستُخزن هنا بيانات CSV كاملة
 
+    // التحقق من كلمة السر
     loginButton.addEventListener("click", () => {
       const entered = passwordInput.value.trim();
       if (entered === PASSWORD) {
@@ -200,7 +213,7 @@
       }
     });
 
-    // ======= دالة لتحميل CSV ومعالجته حسب هيكل الملف المرفوع =======
+    // ======= دالة تحميل ملف CSV وتحويله إلى مصفوفة كائنات =======
     function loadAndRenderData() {
       Papa.parse("data.csv", {
         download: true,
@@ -208,25 +221,25 @@
         complete: function(results) {
           const rows = results.data;
           if (rows.length >= 2) {
-            // الصف الأول يحتوي على التاريخ
+            // الصف الأول: تاريخ التحديث
             const updateDate = rows[0][0];
             updateDateEl.textContent = "آخر تحديث: " + updateDate;
 
-            // الصف الثاني هو رأس الجدول: ['حالة بطاقة نسك','الاسم','الهوية', ...]
-            // البيانات تبدأ من الصف رقم 3 في الصفيف (index 2)
+            // الصف الثاني: رؤوس الأعمدة (نهمله)
+            // البيانات تبدأ من الصف الثالث (index=2)
             const dataRows = rows.slice(2);
 
-            // انشاء مصفوفة الكائنات بصيغة: { name, id, status }
+            // بناء مصفوفة الكائنات، مع قراءة عمود الصورة من index 3
             allData = dataRows.map(r => ({
-              name: r[1] || "",
-              id: r[2] || "",
-              status: r[0] || ""
+              name:      r[1] || "",
+              id:        r[2] || "",
+              status:    r[0] || "",
+              image_url: r[3] || ""   // عمود رابط الصورة
             }));
           } else {
-            updateDateEl.textContent = "تعذر جلب البيانات.";
+            updateDateEl.textContent = "تعذّر جلب البيانات.";
           }
-
-          // لا نعرض الجدول افتراضيًا، فقط بعد البحث
+          // نعرض جدول فارغ أولًا حتى يبدأ المستخدم بالبحث
           renderTable([]);
         },
         error: function(err) {
@@ -236,29 +249,39 @@
       });
     }
 
-    // ======= دالة لعرض الجدول من مصفوفة البيانات =======
+    // ======= دالة عرض الجدول بناءً على مصفوفة الكائنات المُمرّرة =======
     function renderTable(dataArray) {
       const tbody = document.querySelector("#data-table tbody");
-      tbody.innerHTML = ""; // نفضي الجدول قبل إعادة التعبئة
+      tbody.innerHTML = ""; // تفريغ الجدول قبل إعادة التعبئة
 
       dataArray.forEach(row => {
         const tr = document.createElement("tr");
 
-        // العمود: الاسم
+        // خانة الصورة
+        const tdImg = document.createElement("td");
+        tdImg.classList.add("img-cell");
+        if (row.image_url) {
+          const img = document.createElement("img");
+          img.src = row.image_url;
+          img.alt = row.name;
+          tdImg.appendChild(img);
+        }
+        tr.appendChild(tdImg);
+
+        // خانة الاسم
         const tdName = document.createElement("td");
         tdName.textContent = row.name;
         tr.appendChild(tdName);
 
-        // العمود: رقم الهوية
+        // خانة رقم الهوية
         const tdId = document.createElement("td");
         tdId.textContent = row.id;
         tr.appendChild(tdId);
 
-        // العمود: الحالة مع التلوين
+        // خانة الحالة مع اللون
         const tdStatus = document.createElement("td");
         tdStatus.textContent = row.status;
-        const statusLower = (row.status || "").trim();
-        if (statusLower === "مسموح") {
+        if ((row.status || "").trim() === "مسموح") {
           tdStatus.classList.add("status-allowed");
         } else {
           tdStatus.classList.add("status-denied");
@@ -269,17 +292,17 @@
       });
     }
 
-    // ======= دالة الفلترة وعرض النتائج أثناء الكتابة =======
+    // ======= دالة الفلترة الفوري أثناء الكتابة =======
     const searchInput = document.getElementById("search-input");
     searchInput.addEventListener("input", () => {
       const query = searchInput.value.trim().toLowerCase();
       if (!query) {
-        renderTable([]); // لا عرض عند خلو خانة البحث
+        renderTable([]);
         return;
       }
       const filtered = allData.filter(row => {
-        const nameLower = (row.name || "").toLowerCase();
-        const idLower   = (row.id   || "").toString().toLowerCase();
+        const nameLower = row.name.toLowerCase();
+        const idLower   = row.id.toLowerCase();
         return nameLower.includes(query) || idLower.includes(query);
       });
       renderTable(filtered);
