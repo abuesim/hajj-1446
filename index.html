@@ -143,7 +143,7 @@
     </div>
   </div>
 
-  <!-- المحتوى الرئيسي (مخفي حتى يدخل كلمة السر) -->
+  <!-- المحتوى الرئيسي (يُخفى حتى إدخال كلمة السر) -->
   <div id="main-content" style="display: none;">
     <!-- العنوان -->
     <header>العاملين في حج 1446هـ</header>
@@ -229,17 +229,17 @@
             // البيانات تبدأ من الصف الثالث (index=2)
             const dataRows = rows.slice(2);
 
-            // بناء مصفوفة الكائنات، مع قراءة عمود الصورة من index 3
+            // بناء مصفوفة الكائنات، مع استخدام r[7] لرابط الصورة
             allData = dataRows.map(r => ({
-              name:      r[1] || "",
-              id:        r[2] || "",
-              status:    r[0] || "",
-              image_url: r[3] || ""   // عمود رابط الصورة
+              status:    r[0] || "",     // حالة بطاقة نسك
+              name:      r[1] || "",     // الاسم
+              id:        r[2] || "",     // رقم الهوية
+              image_url: r[7] || ""      // رابط الصورة (العمود الثامن)
             }));
           } else {
-            updateDateEl.textContent = "تعذّر جلب البيانات.";
+            updateDateEl.textContent = "تعذَّر جلب البيانات.";
           }
-          // نعرض جدول فارغ أولًا حتى يبدأ المستخدم بالبحث
+          // نعرض جدول فارغ مبدئيًّا حتى يبدأ المستخدم بالبحث
           renderTable([]);
         },
         error: function(err) {
@@ -249,7 +249,7 @@
       });
     }
 
-    // ======= دالة عرض الجدول بناءً على مصفوفة الكائنات المُمرّرة =======
+    // ======= دالة عرض الجدول بناءً على مصفوفة الكائنات =======
     function renderTable(dataArray) {
       const tbody = document.querySelector("#data-table tbody");
       tbody.innerHTML = ""; // تفريغ الجدول قبل إعادة التعبئة
@@ -278,7 +278,7 @@
         tdId.textContent = row.id;
         tr.appendChild(tdId);
 
-        // خانة الحالة مع اللون
+        // خانة الحالة مع التلوين
         const tdStatus = document.createElement("td");
         tdStatus.textContent = row.status;
         if ((row.status || "").trim() === "مسموح") {
@@ -292,12 +292,12 @@
       });
     }
 
-    // ======= دالة الفلترة الفوري أثناء الكتابة =======
+    // ======= دالة الفلترة الفورية أثناء الكتابة =======
     const searchInput = document.getElementById("search-input");
     searchInput.addEventListener("input", () => {
       const query = searchInput.value.trim().toLowerCase();
       if (!query) {
-        renderTable([]);
+        renderTable([]); // لا عرض عند خلو خانة البحث
         return;
       }
       const filtered = allData.filter(row => {
